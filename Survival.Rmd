@@ -1,0 +1,299 @@
+---
+title: "Survival Analysis in R For Beginners"
+author: "Wulan Andriyani"
+date: "18 February 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 9999)
+```
+
+# Introduction to Survival Anlysis
+
+## What is Survival Analysis ?
+
+Analisis survival merupakan suatu metode  statistika yang outcome variabelnya berupa **waktu sampai suatu event terjadi**, dimulai dari time origin (start point) sampai dengan terjadinya suatu event (end point). Pada analisis survival waktu sampai suatu event terjadi merujuk pada waktu suatu individu untuk survive. **Waktu** tersebut dapat berupa tahun, bulan, hari, jam, atau bahkan menit yang diukur sejak pengamatan dimulai hingga muncul kejadian. **Event** yang diamati dapat berupa kematian, kesembuhan, kekambuhan penyakit, kerusakan, kelulusan, dan lain-lain.
+
+## Survival Analysis Problems
+
+1. Orang yang berusia 60 tahun dilihat waktu sampai dia meninggal
+2. Penerima transplantasi organ dilihat waktu sampai dia meninggal
+
+## Goals of Survival Analysis
+
+**Goal 1**: Interpretasi fungsi survival dan hazard serta hubungan kausalitas antara prediktor                dengan waktu survive
+
+**Goal 2**: Mengestimasi peluang survive dan rata-rata waktu survive
+
+**Goal 3**: Membandingkan peluang survive dari beberapa perlakuan yang berbeda
+
+## Data Survival
+
+Analisis survival memerlukan data berupa waktu survive yang disebut dengan data survival. Data survival terdiri dari 3 komponen, yaitu :
+
+1. **Kejadian (Event)**
+
+Event biasanya merujuk pada sesuatu yang negatif misal kematian atau kerusakan padahal perlu di garis bawahi bahwa event dapat pula merujuk pada sesuatu yang positif, misal kesembuhan atau kelulusan. Jenis event:
+
+- Terminate 
+  Pengamatan hanya dilakukan sampai terjadi event pertama. Contoh : kematian, kerusakan
+
+- Tidak Terminate
+  Pengamatan dilakukan secara berkelanjutan setelah terjadi event pertama. Contoh : status berat   badan, stadium penyakit
+
+2. **Origin**
+Titik asal (origin), yaitu titik awal yang digunakan untuk mengukur lama waktu sampai terjadi event.
+
+3. **Satuan waktu**
+Satuan waktu yang digunakan
+
+**Censoring (incomplete data)**
+
+1. Data terpotong
+
+- Data terpotong kiri  : Pada 10 orang yang usianya 50 tahun ke atas diukur lama waktu sampai                             meninggal, namun ada 3 orang yang sudah meninggal sebelum usia 50 tahun
+
+- Data trerpotong kanan: Pada 10 orang pasien diukur lama waktu sampai penyakitnya kambuh                                 kembali, namun dari 10 orang pasien terdapat 2 orang pasien yang                                 dinyatakan belum sembuh
+
+2. Data tersensor
+
+- Data tersensor kiri: Pada suatu penelitian yang dilakukan terhadap 10 orang ingin diketahui     faktor-faktor yang menyebabkan seseorang menjadi perokok, namun terdapat 1 orang yang lupa sejak kapan ia mulai merokok tetapi mengingat ia mulai merokok pada usia tertentu
+
+- Data tersensor kanan:
+
+                       *Tipe I: Subjek tidak mengalami event selama penelitian
+  
+                       *Tipe II: Observasi yang mengalami event ditentukan terlebih dahulu
+  
+                       *Random censorig: Subjek menghilang selama masa pengamatan
+
+## Survival Analysis in R
+
+Pada materi ini kita akan menggunakan beberapa package yang ada di R, yaitu 'survival' untuk melakukan analisis survival dan 'survminer' untuk memvisualisasikan hasil analisis survival. ['survminer' cheat sheet](www.sthda.com/english/wiki/survminer-cheatsheet-to-create-easily-survival-plots)
+
+Import library
+```{r}
+library(survival)
+library(survminer)
+library(dplyr)
+```
+
+pas ngambil datanya gimana?
+
+Dikumpulkan data lama waktu sampai lampu mengalami kerusakan (1=mati) dari sepuluh
+lampu selama 12 bulan. Jika event adalah lampu rusak (mati) dan origin adalah pada saat lampu pertama kali dipasang, diperoleh data sebagai berikut:
+```{r}
+t_lampu <- c(12,7,3,10,12,12,8,6,8,10)
+kondisi <- c(0,1,0,1,1,0,1,0,0,1)
+lampu <- Surv(t_lampu,kondisi)
+#cbind(t_lampu,kondisi,lampu)
+
+```
+
+# Statistics Behind Survival Analysis
+
+## Survival and hazard function
+
+Fungsi survival $S(t)$ didefinisikan sebagai peluang suatu individu dapat bertahan hidup dengan waktu survive sampai waktu $t$. Atau lebih sederhana, fungsi survival yaitu peluang individu tidak mengalami event sampai waktu $t$. Fungsi survival merupakan peluang, oleh karena itu nilainya berkisar antara 0 sampai dengan 1.
+
+![](assets/fungsi survival.png) 
+
+Salah satu karakteristik dari fungsi survival yaitu pada saat $t=0$ maka $S(t)=1$, semakin panjang waktu atau $t$ maka nilai $S(t)$ semakin turun mendekati 0. Dapat dilihat pada Gambar diatas grafik fungsi survival antara 2 pasien yaitu A dengan garis lurus, dan B dengan garis putus-putus. Berdasarkan grafik tersebut diketahui bahwa pada saat $t=0$ maka $S(t)$ dari kedua pasien tersebut sama-sama bernilai 1, atau dapat pula diartikan bahwa pada saat kedua pasien dirawat pada hari ke-0 maka peluang pasien untuk tidak mengalami event (sembuh) adalah 1. Selanjutnya yaitu dapat diketahui bahwa semakin panjang lama waktu pasien dirawat maka peluang pasien untuk tidak mengalami event (sembuh) yaitu mendekati 0.
+
+Jika ditanya “Pasien mana yang lebih cepat sembuh?” jawabaannya adalah pasien B. Karena dapat dilihat bahwa grafik $S(t)$ pasien B selalu dibawah pasien A, ingat bahwa $S(t)$ merupakan peluang untuk tidak mengalami event oleh karena itu berarti peluang pasien B untuk tidak sembuh lebih kecil daripada peluang pasien A.
+
+Fungsi hazard merupakan tingkat terjadinya event sampai dengan waktu t. Bisa dikatakan bahwa fungsi hazard merupakan lawan dari fungsi survival, jika fungsi survival yaitu peluang untuk tidak mengalami event sedangkan fungsi hazard merupakan tingkat terjadinya event (sering disebut tingkat resiko). Fungsi hazard bukan peluang, oleh karena itu selalu bernilai positif.
+
+## Non-Parametrik Survival
+
+Statistik non-parametrik tidak didasarkan pada asumsi distribusi probabilitas dan cukup masuk akal digunakan pada analisis survival karena data survival memiliki distribusi yang miring.
+
+### Kaplan-Meier
+
+Kaplan-Meier pertama kali diperkenalkan oleh Edward Kaplan dan Paul Meier pada tahun 1958 di Journal of American Statistics Association. Kaplan-meier mengestimasi peluang seorang pasien akan bertahan melewati waktu $t$ tertentu. Pada $t = 0$, Kaplan-Meier mengestimasi peluang seorang pasien akan bertahan adalah 1 dan semakin ta terhingga $t$, peluangnya menjadi 0. 
+
+Using lung data
+```{r}
+data("lung") 
+str(lung)
+head(lung)
+```
+
+The variabels are:
+
+1.  'Inst'      : kode institusi
+2.  'Time'      : waktu survive dalam hari
+3.  'Status'    : status penyensoran (1 = tersensor, 2 = meninggal)
+4.  'Age'       : usia pasien dalam tahun
+5.  'Sex'       : jenis kelamin (1 = laki-laki, 2 = perempuan)
+6.  'Ph.ecog'   : skala yang digunakan dokter untuk mengetahui level kondisi pasien (0-5 =                         baik-meninggal)
+7.  'Ph.karno'  : skala karnofsky yang dinilai dari dokter (0-100 = buruk-baik)
+8.  'Pat.karno' : skala karnofsky dari pasien
+9.  'Meal.cal'  : banyak kalori yang dikonsumsi
+10. 'Wt.loss'   : banyak berat badan yang berkurang dalam kurun waktu 6 bulan terakhir
+
+Pre-processing
+```{r}
+lung <- lung %>% 
+  select(-inst) %>% 
+  mutate(sex = as.factor(sex))
+
+colSums(is.na(lung))
+lung_noNA <- na.omit(lung)
+```
+
+making survival object
+```{r}
+surv_lung <- Surv(time = lung$time, event = lung$status)
+surv_lung_noNA <- Surv(time = lung_noNA$time, event = lung_noNA$status)
+```
+
+Kaplan-Meier
+```{r}
+#km_lung <- survfit(Surv(time, status) ~ sex, data = lung)
+km_lung <- survfit(surv_lung ~ sex, data = lung)
+summary(km_lung, times = 365)
+
+summary(km_lung)
+
+#km_lung_noNA <- survfit(Surv(time, status) ~ sex, data = lung_noNA)
+km_lung_noNA <- survfit(surv_lung_noNA ~ sex, data = lung_noNA)
+summary(km_lung_noNA)
+```
+
+Survival curve
+```{r}
+ggsurvplot(km_lung, 
+        pval = TRUE, # Menampilkan p-value uji log rank
+        risk.table = TRUE) # Menampilkan tabel risiko
+
+ggsurvplot(km_lung_noNA, 
+        pval = TRUE, # Menampilkan p-value uji log rank
+        risk.table = TRUE) # Menampilkan tabel risiko
+```
+
+Hazard curve
+```{r}
+ggsurvplot(km_lung,
+           fun = "cumhaz", 
+           data = lung) # Memanggil hazard kumulatif
+
+ggsurvplot(km_lung_noNA,
+           fun = "cumhaz") # Memanggil hazard kumulatif
+```
+
+
+Using ovarian data
+```{r}
+data(ovarian)
+str(ovarian)
+```
+
+Pre-processing
+```{r}
+ovarian <- ovarian %>% 
+  mutate(resid.ds = as.factor(resid.ds),
+         rx = as.factor(rx),
+         ecog.ps = as.factor(ecog.ps))
+
+colSums(is.na(ovarian))
+```
+
+making survival object
+```{r}
+surv_ovarian <- Surv(time = ovarian$futime, event = ovarian$fustat)
+```
+
+kaplan-meier
+```{r}
+#km_ovarian <- survfit(Surv(futime, fustat) ~ sex, data = ovarian)
+km_ovarian <- survfit(surv_ovarian ~ rx, data = ovarian)
+summary(km_ovarian)
+```
+
+survival curve
+```{r}
+ggsurvplot(km_ovarian, 
+        pval = TRUE, # Menampilkan p-value uji log rank
+        risk.table = TRUE) # Menampilkan tabel risiko
+```
+
+hazard curve
+```{r}
+ggsurvplot(km_ovarian,
+           fun = "cumhaz") # Memanggil hazard kumulatif
+```
+
+### Nelson-Aalen
+
+Estimasi Nelson-Aalen pada dasarnya sama dengan estimasi Kaplan-Meier tetapi parameter phi dipandang sebagai tingkat terjadinya event pada saat $t$. Bisa dikatakan bahwa phi merupakan estimasi untunk fungsi hazard pada saat $t$.
+
+```{r}
+#na_lung <- survfit(coxph(Surv(time, status) ~ sex, method = "breslow", data = lung))
+na_lung <- survfit(coxph(surv_lung ~ sex, method = "breslow", data = lung))
+
+#na_lung_noNA <- survfit(coxph(Surv(time, status) ~ sex, method = "breslow", data = lung_noNA))
+na_lung_noNA <- survfit(coxph(surv_lung ~ sex, method = "breslow", data = lung))
+```
+
+```{r}
+#na_ovarian <- survfit(coxph(Surv(futime, fustat) ~ rx, method="breslow", data = ovarian))
+na_ovarian <- survfit(coxph(surv_ovarian ~ rx, method="breslow", data = ovarian))
+```
+
+### Log-Rank Test
+
+Uji Log-Rank pertama kali diperkenalkan oleh Nathan Mantel pada tahun 1972. Uji Log-Rank merupakan metode yang digunakan untuk membandingkan apakah terdapat perbedaan peluang survive antar beberapa perlakuan. Hipotesis untuk uji Log-Rank, yaitu:
+
+H0 : Tidak ada perbedaan peluang survive antar perlakuan
+H1 : Paling sedikit ada satu perlakuan yang membuat peluang survivenya berbeda 
+
+```{r}
+lr_lung <- survdiff(Surv(time, status) ~ sex, data = lung) 
+lr_lung_noNA <- survdiff(Surv(time, status) ~ sex, data = lung_noNA) 
+```
+
+```{r}
+lr_ovarian <- survdiff(Surv(futime, fustat) ~ rx, data = ovarian)
+```
+
+## Parametrik Survival
+
+Berbeda dari statistik non-parametrik, statistik parametrik didasarkan pada asumsi distribusi probabilitas tertentu dan diduga terdapat variabel lain (prediktor) yang mempengaruhi lama waktu sampai terjadi suatu event.
+
+```{r}
+Reg_lung <- survreg(Surv(time,status)~ sex,dist="exponential", data = lung)
+Reg_lung_noNA <- survreg(Surv(time,status)~ sex,dist="exponential", data = lung_noNA)
+summary(Reg_lung)
+
+```
+
+```{r} 
+Reg_ovarian <- survreg(Surv(futime, fustat)~ rx,dist="exponential", data = ovarian)
+```
+
+## Semi Parametrik
+
+Cox Proportional Hazard Model memodelkan fungsi baseline hazard nya secara non-parametrik dan fungsi variabel prediktornya secara parametrik.  
+
+```{r}
+cox_lung_noNA <- coxph(surv_lung_noNA ~ age + sex + ph.ecog + ph.karno + pat.karno + meal.cal + wt.loss, data = lung_noNA)
+ggforest(cox_lung_noNA, data = lung_noNA)
+summary(cox_lung_noNA)
+
+
+cox_lung <- coxph(surv_lung ~ age + sex + ph.ecog + ph.karno + pat.karno + meal.cal + wt.loss,
+                  data = lung)
+ggforest(cox_lung, data = lung)
+```
+
+```{r}
+cox_ovarian <- coxph(surv_ovarian ~ age + resid.ds + rx + ecog.ps, 
+                   data = ovarian)
+ggforest(cox_ovarian, data = ovarian)
+```
+
+
+
